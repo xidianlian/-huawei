@@ -12,7 +12,7 @@ public class Car {
 	private int state;
 	
 	// position 坐标从1开始
-	private int roadId, cid, position;
+	private int roadId, forward, cid, position;
 	
 	private String dir;
 	
@@ -30,6 +30,20 @@ public class Car {
 	
 	}
 	
+	public void setCarInfo(int roadId, int forward, int cid, int position) {
+		this.roadId = roadId;
+		this.forward = forward;
+		this.cid = cid;
+		this.position = position;
+	}
+	public int getForward() {
+		return forward;
+	}
+
+	public void setForward(int forward) {
+		this.forward = forward;
+	}
+
 	public String getDir() {
 		return dir;
 	}

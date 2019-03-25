@@ -35,15 +35,19 @@ public class Main {
     
     private static HashMap<Integer, Integer> roadsMp = new HashMap<Integer, Integer>();
     
+    private static ArrayList<Object> cars = new ArrayList<Object>();
+    
+    private static ArrayList<Object> crosses = new ArrayList<Object>();
+    
+    private static ArrayList<Object> roads = new ArrayList<Object>();
+    
     /**
      * 
      * @param car
-     * @param cross
-     * @param roads
      * @description ( 利用堆优化的迪杰斯特拉算法计算某辆车到目的路口的最短时间花费)
      * @return 车经过的车道编号
      */
-    private static ArrayList<Integer> dij(Car car, ArrayList<Object> crosses, ArrayList<Object> roads) {
+    private static ArrayList<Integer> dij(Car car) {
     	ArrayList<Integer> ansList = new ArrayList<Integer>();
     	ArrayList<Integer> reverList = new ArrayList<Integer>();
      	int crossSize = crosses.size();
@@ -126,7 +130,13 @@ public class Main {
 		Car lastCar = null;
 		while(!carList.isEmpty()) {
 			Car car = carList.poll();
-			if (car.getState() != 1) {
+			if (car.getState() != 1 && car.getState() != 2) {
+				lastCar = car;
+				carList.add(car);
+				cnt++;
+				if (cnt == carListSize) {
+					break;
+				}
 				continue;
 			}
 			int maxSpeed = Math.min(car.getSpeed(), road.getSpeed());
@@ -166,7 +176,7 @@ public class Main {
     /**
    	 * 先调度路上的车
      */
-    public static void checkRoads(ArrayList<Object> crosses,ArrayList<Object> roads, ArrayList<Object> cars) {
+    public static void checkRoads() {
 
     	for (int i = 0; i < roads.size(); i++) {
 			Road road = (Road) roads.get(i);
@@ -184,6 +194,8 @@ public class Main {
 		}
     	
     }
+    
+    /******222********/
     public static Car getChannelFirstCar(ArrayList<Channel> channels) {
     	// 同一道路，不管在哪个车道上，前面的优先。不同车道上的车，如果在同一位置，那么，车道号小的优先
     	Car car = null;
@@ -242,21 +254,126 @@ public class Main {
     }
     public static String getCarDir(int curDirIndex, Car car, TreeMap<Integer, Integer> dirMap) {
     	int nextRoadIndex =  car.getNextRoadIndex();
-		// 注意数组越界
+    	if (nextRoadIndex == -1) {
+    		return "D";
+    	}
+    	// 注意数组越界
 		int nextRoadId = car.getRoadList().get(nextRoadIndex);
 		int nextDirIndex = dirMap.get(nextRoadId);
 		return judgeDir(curDirIndex,  nextDirIndex);
     }
-    public static void checkCrosses(ArrayList<Object> crosses,ArrayList<Object> roads, ArrayList<Object> cars) {
+    // 判断当前车能不能进入下一道路
+    public static boolean checkNextChannels(Car car, Road curRoad, Road nextRoad, ArrayList<Channel> nextChannels, int nextForward) {
+    	int v1 = Math.min(car.getSpeed(), curRoad.getSpeed());
+    	int v2 = Math.min(car.getSpeed(), nextRoad.getSpeed());
+    	Channel curChannel;
+    	if (car.getForward() == 1) {
+    		ArrayList<Channel> fromChannels = curRoad.getFromChannels();
+    		curChannel = fromChannels.get(car.getCid());
+    	} else {
+    		ArrayList<Channel> toChannels = curRoad.getToChannels();
+    		curChannel = toChannels.get(car.getCid());
+    	}
+    	
+    	// 当前道路可行使最大距离
+    	int s1 = car.getPosition() - 1;
+    	if (s1 >= v1) {
+    		logger.error("s1 >= v1!!");
+    		return false;
+    	}
+    	for (int i = 0; i < nextChannels.size(); i++) {
+    		Channel channel = nextChannels.get(i);
+    		LinkedList<Car> carList = channel.getCarList();
+    		Car endCar = carList.getLast();
+    		int couldRun = nextRoad.getLength() - endCar.getPosition();
+    		int s2 = v2 - s1 < 0 ? 0 : v2 - s1;
+    		if (s2 == 0) {
+    			car.setPosition(1);
+    			car.setState(3);
+    			return true;
+    		} else {
+    			if (s2 <= couldRun) {
+    				car.setCarInfo(nextRoad.getId(), nextForward, i, nextRoad.getLength() - s2 + 1);
+    				
+    				car.setState(3);
+    				channel.getCarList().add(car);
+    				curChannel.getCarList().poll();
+    				return true;
+    			} else {
+    				if (endCar.getState() == 3) {
+    					if (couldRun == 0) {
+    						continue;
+    					}
+    					car.setCarInfo(nextRoad.getId(), nextForward, i, endCar.getPosition() + 1);
+        				car.setState(3);
+        				channel.getCarList().add(car);
+        				curChannel.getCarList().poll();
+        				return true;
+    				} else {
+    					car.setState(2);
+    					return false;
+    				}
+    			}
+    		}
+    	}
+    	
+    	return false;
+    }
+    public static boolean leave(Road curRoad, Cross curCross, Car car) {
+    	int nextRoadIndex =  car.getNextRoadIndex();
+    	ArrayList<Channel> channels = null;
+    	if (curRoad.getTo() == curCross.getId()) {
+			channels = curRoad.getFromChannels();
+		} else if (curRoad.getIsDuplex() == 1 && curRoad.getFrom() == curCross.getId()) {
+			channels = curRoad.getToChannels();
+		}
+    	if (channels == null) {
+    		logger.error("leave channels == null");
+    	}
+    	// 到达目的地
+    	if (nextRoadIndex == -1) {
+    		int channelId = car.getCid();
+    		Channel channel = channels.get(channelId);
+    		LinkedList<Car> carList = channel.getCarList();
+    		car.setState(4);
+    		carList.poll();
+    		checkRoadsChannel(curRoad, channel);
+    		return true;
+    	}
+    	// 注意数组越界
+		int nextRoadId = car.getRoadList().get(nextRoadIndex);
+		Road nextRoad = (Road) roads.get(roadsMp.get(nextRoadId));
+		int nextForward = 0;
+		ArrayList<Channel> nextChannels = null;
+		if (nextRoad.getFrom() == curCross.getId()) {
+			nextChannels = nextRoad.getFromChannels();
+			nextForward = 1; 
+		} else if (nextRoad.getIsDuplex() == 1 && nextRoad.getTo() == curCross.getId()) {
+			nextChannels = nextRoad.getToChannels();
+			nextForward = -1;
+		}
+		if (nextChannels == null) {
+    		logger.error("leave nextChannels == null");
+    	}
+		if (nextForward == 0) {
+			logger.error("nextForward == 0");
+		}
+		boolean isLeave = checkNextChannels(car, curRoad, nextRoad, nextChannels, nextForward);
+    	return isLeave;
+    }
+    public static void checkCrosses() {
     	// 出现死锁 或者 全部车到达终止状态
     	while(true) {
     		boolean isHasCarRun = false;
     		for (int i = 0; i < crosses.size(); i++) {
     			Cross cross = (Cross) crosses.get(i);
+    			// 映射为<roaId, index>
 	    		TreeMap<Integer, Integer> dirMap = cross.getDirMap();
 	    		
     			while (true) {
+    				// 先把四个方向第一优先级的车存下来 <roadId, Car>
 		    		TreeMap<Integer, Car> carMap = new TreeMap<Integer, Car>();
+		    		// 每个路口按道路id升序
 		    		for (Map.Entry<Integer, Integer> entry : dirMap.entrySet()) {
 		    			int roadId = entry.getKey().intValue();
 		    			int curDirIndex = entry.getValue();
@@ -284,16 +401,45 @@ public class Main {
 	    			for (Map.Entry<Integer, Car> entry : carMap.entrySet()) {
 		    			int roadId = entry.getKey();
 		    			Car car = entry.getValue();
-		    			if (car.getNextRoadIndex() == -1) {
-		    				
-		    			} else {
-			    			if (car.getDir() == "D") {
-			    				
-			    			} else if (car.getDir() == "L") {
-			    				
-			    			} else if (car.getDir() == "R") {
-			    				
-			    			}
+		    			Road road = (Road) roads.get(roadsMp.get(roadId));
+		    			HashMap<String, Integer> roadDirMap = null;
+		    			if (road.getTo() == cross.getId()) {
+		    				roadDirMap = road.getToDirMap();
+		    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
+		    				roadDirMap = road.getFromDirMap();
+		    			}
+		    			
+		    			if (car.getDir() == "D") {
+		    				boolean isLeave = leave(road, cross, car);
+		    				if (isLeave) {
+		    					flag = true;
+		    				}
+		    			} else if (car.getDir() == "L") {
+		    				Integer rRoadId = roadDirMap.get("R");
+		    				Car rCar = carMap.get(rRoadId);
+		    				// 右边车为直行，那么它等待
+		    				if (rCar == null || rCar.getDir() != "D") {
+		    					boolean isLeave = leave(road, cross, car);
+		    					if (isLeave) {
+			    					flag = true;
+			    				}
+		    				} else {
+		    					car.setState(2);
+		    				}
+		    			} else if (car.getDir() == "R") {
+		    				Integer lRoadId = roadDirMap.get("L");
+		    				Car lCar = carMap.get(lRoadId);
+		    				Integer dRoadId = roadDirMap.get("D");
+		    				Car dCar = carMap.get(dRoadId);
+		    				// 先看左边车是否直行，再看前方车是否左转
+		    				if ((lCar == null || lCar.getDir() != "D") && (dCar == null || dCar.getDir() != "R")) {
+		    					boolean isLeave = leave(road, cross, car);
+		    					if (isLeave) {
+			    					flag = true;
+			    				}
+		    				} else {
+		    					car.setState(2);
+		    				}
 		    			}
 		    			
 	    			}
@@ -308,14 +454,8 @@ public class Main {
     	}
     	
     }
-    public static boolean judge(int startTime, ArrayList<Object> crosses, ArrayList<Object> roads, ArrayList<Object> cars) {
-    	int[] lastState = new int[cars.size()];
-    	int[] curState = new int[cars.size()];
-    	for (int i = 0; i < cars.size(); i++) {
-    		Car car = (Car)cars.get(i);
-    		lastState[i] = curState[i] = 0;
-    		car.setState(0);
-    	}
+    public static boolean judge(int startTime) {
+    
     	for (int time = startTime; ; time++) {
     		boolean flag = true;
     		for (int i = 0; i < cars.size(); i++) {
@@ -328,8 +468,8 @@ public class Main {
     		if (flag == true) {
     			return true;
     		}
-    		checkRoads(crosses, roads, cars);
-    		checkCrosses(crosses, roads, cars);
+    		checkRoads();
+    		checkCrosses();
     	}
     }
     
@@ -361,9 +501,7 @@ public class Main {
         logger.info("carPath = " + carPath + " roadPath = " + roadPath + " crossPath = " + crossPath + " and answerPath = " + answerPath);
         // TODO:read input files
         logger.info("start read input files");
-        ArrayList<Object> cars = new ArrayList<Object>();
-        ArrayList<Object> crosses = new ArrayList<Object>();
-        ArrayList<Object> roads = new ArrayList<Object>();
+        
       
         try {
 			FileOpt.readFile(carPath, cars, "Car");
@@ -379,7 +517,12 @@ public class Main {
 			public int compare(Object o1, Object o2) {
 				Car car1  = (Car)o1;
 				Car car2  = (Car)o2;
-				return car1.getId() - car2.getId();
+				if (car1.getRealTime() == car2.getRealTime()) {
+					return car1.getId() - car2.getId();
+				} else {
+					return car1.getRealTime() - car2.getRealTime();
+				}
+				
 			}
 		});
         crosses.sort(new Comparator<Object>() {
@@ -410,20 +553,21 @@ public class Main {
         			continue;
         		}
         		Road road = (Road) roads.get(roadsMp.get(roadId1));
-        		HashMap<String, Integer> dirMap;
-        		if (road.getFrom() == cross.getId()) {
-        			dirMap = road.getFromDirMap();
-        		} 
-        		if (road.getTo() == cross.getId() && road.getIsDuplex() == 1) {
-        			dirMap = road.getToDirMap();
-        		}
+        		HashMap<String, Integer> dirMap = new HashMap<String, Integer>();
+        		
         		for (int k = 0; k < roadIds.length; k++) {
         			int roadId2 = roadIds[k];
         			if (k == j || roadId2 == -1) {
         				continue;
         			}
         			String dir = judgeDir(j, k);
-        			
+        			dirMap.put(dir, roadId2);
+        		}
+        		if (road.getFrom() == cross.getId()) {
+        			road.setFromDirMap(dirMap);
+        		} 
+        		if (road.getTo() == cross.getId() && road.getIsDuplex() == 1) {
+        			road.setFromDirMap(dirMap);
         		}
         	}
         }
@@ -431,7 +575,7 @@ public class Main {
         
         for (int i = 0; i < cars.size(); i++) {
         	Car car = (Car)cars.get(i);
-        	ArrayList<Integer> list = dij(car, crosses, roads);
+        	ArrayList<Integer> list = dij(car);
         	// 车的出发时间，都向后推迟一个随机数，避免堵塞
         	int randNum =   random(1, cars.size() / 4 ) / 3;
         	car.setRealTime(car.getPlanTime() + randNum);
@@ -451,7 +595,7 @@ public class Main {
         		// 所有车都没出发
         		car.setState(0);
         	}
-        	if (judge(startTime, crosses, roads, cars) == true) {
+        	if (judge(startTime) == true) {
         		break;
         	} 
         	range += step;
