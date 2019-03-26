@@ -31,10 +31,13 @@ public class FileOpt {
         	String strs[] = line.split(",");
         	int[] number = new int[strs.length];
         	for (int i = 0; i < strs.length; i++) {
-        		if (i != strs.length - 1) {
-        			strs[i] = strs[i].substring(1, strs[i].length()).trim();
+        		strs[i] = strs[i].trim();
+        		if (i == 0) {
+        			strs[i] = strs[i].substring(1, strs[i].length());
+        		} else if (i != strs.length - 1) {
+        			strs[i] = strs[i].substring(0, strs[i].length()).trim();
         		} else {
-        			strs[i] = strs[i].substring(1, strs[i].length() - 1).trim();
+        			strs[i] = strs[i].substring(0, strs[i].length() - 1).trim();
         		}
         		
         		number[i] = Integer.parseInt(strs[i]);

@@ -1,6 +1,5 @@
 package com.huawei;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,7 +8,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.log4j.Logger;
 
@@ -41,10 +39,14 @@ public class Main {
     
     private static ArrayList<Object> roads = new ArrayList<Object>();
     
+    // 在路上的车数量
     private static int runCarsNum;
     
-    private static int waitNum;
+    // 终止状态的车
+    private static int endNum;
     
+    // 到达终点的车
+    private static int arrivedNum;
     /**
      * 
      * @param car
@@ -149,6 +151,7 @@ public class Main {
 				length = car.getPosition() - 1;
 				if (length >= maxSpeed) {
 					car.setPosition(car.getPosition() - maxSpeed);
+					endNum++;
 					car.setState(3); 
 				} else {
 					car.setState(2);
@@ -158,13 +161,16 @@ public class Main {
 				length = car.getPosition() - lastCar.getPosition() - 1;
 				if (length >= maxSpeed) {
 					car.setPosition(car.getPosition() - maxSpeed);
+					endNum++;
 					car.setState(3);
 				} else {
 					if (lastCar.getState() == 3) {
 						car.setPosition(car.getPosition() - length);
 						car.setState(3);
+						endNum++;
 					} else if (lastCar.getState() == 2) {
 						car.setState(2);
+						
 					}
 				}
 			}
@@ -206,6 +212,9 @@ public class Main {
     	for (int i = 0; i < channels.size(); i++) {
     		Channel channel = channels.get(i);
     		LinkedList<Car> carList = channel.getCarList();
+    		if (carList.size() == 0) {
+    			continue;
+    		}
     		Car first = carList.getFirst();
     		if (first.getState() == 3) {
     			continue;
@@ -258,7 +267,7 @@ public class Main {
     }
     public static String getCarDir(int curDirIndex, Car car, TreeMap<Integer, Integer> dirMap) {
     	int nextRoadIndex =  car.getNextRoadIndex();
-    	if (nextRoadIndex == -1) {
+    	if (car.isEnd()) {
     		return "D";
     	}
     	// 注意数组越界
@@ -288,18 +297,30 @@ public class Main {
     	for (int i = 0; i < nextChannels.size(); i++) {
     		Channel channel = nextChannels.get(i);
     		LinkedList<Car> carList = channel.getCarList();
+    		int s2 = v2 - s1 < 0 ? 0 : v2 - s1;
+    		if (carList.isEmpty()) {
+    			car.setCarInfo(nextRoad.getId(), nextForward, i, nextRoad.getLength() - s2 + 1);
+    			car.setState(3);
+    			endNum++;
+    			car.nextRoadIndexPlus();
+    			channel.getCarList().add(car);
+				curChannel.getCarList().poll();
+				return true;
+    		}
     		Car endCar = carList.getLast();
     		int couldRun = nextRoad.getLength() - endCar.getPosition();
-    		int s2 = v2 - s1 < 0 ? 0 : v2 - s1;
+    		
     		if (s2 == 0) {
     			car.setPosition(1);
+    			endNum++;
     			car.setState(3);
     			return true;
     		} else {
     			if (s2 <= couldRun) {
     				car.setCarInfo(nextRoad.getId(), nextForward, i, nextRoad.getLength() - s2 + 1);
-    				
+    				endNum++;
     				car.setState(3);
+    				car.nextRoadIndexPlus();
     				channel.getCarList().add(car);
     				curChannel.getCarList().poll();
     				return true;
@@ -310,6 +331,8 @@ public class Main {
     					}
     					car.setCarInfo(nextRoad.getId(), nextForward, i, endCar.getPosition() + 1);
         				car.setState(3);
+        				endNum++;
+        				car.nextRoadIndexPlus();
         				channel.getCarList().add(car);
         				curChannel.getCarList().poll();
         				return true;
@@ -320,7 +343,9 @@ public class Main {
     			}
     		}
     	}
-    	
+    	// 所有道路都不能走，且最后一辆车都为终止态，那么此车也为终止
+    	car.setState(3);
+    	endNum++;
     	return false;
     }
     public static boolean leave(Road curRoad, Cross curCross, Car car) {
@@ -338,8 +363,9 @@ public class Main {
     	Channel channel = channels.get(channelId);
     	LinkedList<Car> carList = channel.getCarList();
     	// 到达目的地
-    	if (nextRoadIndex == -1) {
-    		
+    	if (car.isEnd()) {
+    		arrivedNum++;
+    		runCarsNum--;
     		car.setState(4);
     		carList.poll();
     		checkRoadsChannel(curRoad, channel);
@@ -370,10 +396,9 @@ public class Main {
     	return isLeave;
     }
     public static boolean checkCrosses() {
-    	int lastWaitNum = waitNum;
+    	int lastWaitNum = runCarsNum - endNum;
     	// 出现死锁 或者 全部车到达终止状态
     	while(true) {
-    		
     		for (int i = 0; i < crosses.size(); i++) {
     			Cross cross = (Cross) crosses.get(i);
     			// 映射为<roaId, index>
@@ -384,7 +409,7 @@ public class Main {
 		    		TreeMap<Integer, Car> carMap = new TreeMap<Integer, Car>();
 		    		// 每个路口按道路id升序
 		    		for (Map.Entry<Integer, Integer> entry : dirMap.entrySet()) {
-		    			int roadId = entry.getKey().intValue();
+		    			int roadId = entry.getKey();
 		    			int curDirIndex = entry.getValue();
 		    			if (roadId == -1) {
 		    				continue;
@@ -397,6 +422,7 @@ public class Main {
 		    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
 		    				car = getChannelFirstCar(road.getToChannels());
 		    			}
+		    			// 没发现第一优先级的车，那么就不调度，换下一个
 		    			if (car == null) {
 		    				continue;
 		    			}
@@ -411,7 +437,7 @@ public class Main {
 		    			int roadId = entry.getKey();
 		    			Car car = entry.getValue();
 		    			Road road = (Road) roads.get(roadsMp.get(roadId));
-		    			HashMap<String, Integer> roadDirMap = null;
+		    			HashMap<String, Integer> roadDirMap = new HashMap<String, Integer>();
 		    			if (road.getTo() == cross.getId()) {
 		    				roadDirMap = road.getToDirMap();
 		    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
@@ -425,7 +451,10 @@ public class Main {
 		    				}
 		    			} else if (car.getDir() == "L") {
 		    				Integer rRoadId = roadDirMap.get("R");
-		    				Car rCar = carMap.get(rRoadId);
+		    				Car rCar = null;
+		    				if (rRoadId != null) {
+		    					rCar = carMap.get(rRoadId);
+		    				}
 		    				// 右边车为直行，那么它等待
 		    				if (rCar == null || rCar.getDir() != "D") {
 		    					boolean isLeave = leave(road, cross, car);
@@ -435,11 +464,18 @@ public class Main {
 		    				} else {
 		    					car.setState(2);
 		    				}
+		    				
 		    			} else if (car.getDir() == "R") {
 		    				Integer lRoadId = roadDirMap.get("L");
-		    				Car lCar = carMap.get(lRoadId);
 		    				Integer dRoadId = roadDirMap.get("D");
-		    				Car dCar = carMap.get(dRoadId);
+		    				Car lCar = null;
+		    				Car dCar = null;
+		    				if (lRoadId != null) {
+		    					lCar = carMap.get(lRoadId);
+		    				}
+		    			    if (dRoadId != null) {
+		    			    	dCar = carMap.get(dRoadId);	
+		    			    }
 		    				// 先看左边车是否直行，再看前方车是否左转
 		    				if ((lCar == null || lCar.getDir() != "D") && (dCar == null || dCar.getDir() != "R")) {
 		    					boolean isLeave = leave(road, cross, car);
@@ -455,21 +491,23 @@ public class Main {
 	    			if (flag == false) {
 	    				break;
 	    			}
-	    		}
-    		}
+	    		}// four dir
+    		} // all crosses
+    		int waitNum = runCarsNum - endNum;
     		if (waitNum == lastWaitNum) {
     			return false;
     		}
     		if (waitNum == 0) {
     			break;
     		}
+    		lastWaitNum = waitNum;
     	}
     	return true;
     }
     public static void driveCarInGarage(int time) {
     	for (int i = 0 ; i < cars.size(); i++) {
     		Car car = (Car) cars.get(i);
-    		if (car.getState() != 0 || car.getRealTime() <= time) {
+    		if (car.getState() != 0 || car.getRealTime() > time) {
     			continue;
     		}
     		int nextRoadId = car.getRoadList().get(0);
@@ -490,6 +528,15 @@ public class Main {
     		for (int j = 0 ; j < channels.size(); j++) {
     			Channel channel = channels.get(j);
     			LinkedList<Car> carList = channel.getCarList();
+    			if (carList.isEmpty()) {
+    				car.setState(3);
+    				car.setCarInfo(nextRoadId, forward, j, road.getLength() - maxSpeed + 1);
+    				car.setNextRoadIndex(1);
+    				carList.add(car);
+    				runCarsNum++;
+    				
+    				break;
+    			}
     			Car lastCar = carList.getLast();
     			if (lastCar.getState() != 3) {
     				logger.error("driveCarInGarage lastCar.state != 3");
@@ -502,6 +549,7 @@ public class Main {
     			if (maxSpeed >= couldRun) {
     				car.setState(3);
     				car.setCarInfo(nextRoadId, forward, j, lastCar.getPosition() + 1);
+    				car.setNextRoadIndex(1);
     				carList.add(car);
     				runCarsNum++;
     				break;
@@ -509,6 +557,7 @@ public class Main {
     				car.setState(3);
     				car.setCarInfo(nextRoadId, forward, j, road.getLength() - maxSpeed + 1);
     				carList.add(car);
+    				car.nextRoadIndexPlus();
     				runCarsNum++;
     				break;
     			}
@@ -517,18 +566,38 @@ public class Main {
     }
     // 判断器 包含三大步
     public static boolean judge(int startTime) {
-    	waitNum = 0;
+    	// 不能单独计算等待的车辆，因为，在checkRoads函数会复用，
+    	// 在第一步和第二步会用，按照setStatus==2 加减 waitNum 不可取
+    	// 然而，终止的车辆是不会有变化的
+    	// 所以 waitNum = runCarsNum(在路上的车) - endNum 
     	runCarsNum = 0;
+    	arrivedNum = 0;
     	for (int time = startTime; ; time++) {
+    		// 终止状态的车每次置零
+    		endNum = 0;
     		checkRoads();
-    		boolean isConflict = checkCrosses();
-    		if (isConflict) {
-    			return false;
+    		int waitNum = runCarsNum - endNum; 
+    		if (waitNum != 0) {
+    			
+    			boolean success = checkCrosses();	
+    			if (success == false) {
+        			return false;
+        		}
     		}
-    		if (runCarsNum == cars.size() && waitNum == 0) {
+    		if (arrivedNum == cars.size()) {
     			break;
     		}
     		driveCarInGarage(time);
+    		// init state
+    		for (int i = 0 ; i < cars.size(); i++) {
+    			Car car = (Car) cars.get(i);
+    			if (car.getState() == 2) {
+    				logger.error("调度错误，diao'du'wan");
+    			}
+    			if (car.getState() == 3) {
+    				car.setState(1);
+    			} 
+    		}
     	}
     	return true;
     }
@@ -536,27 +605,23 @@ public class Main {
     public static int random(int min, int max) {
     	return new Random().nextInt(max - min) + min;
     }
-    public static int gussRandom(int u, int v) {
-    	return (int) (new Random().nextGaussian() * v + u);
-    }
-    
     public static void main(String[] args)
     {
-//        if (args.length != 4) {
-//            logger.error("please input args: inputFilePath, resultFilePath");
-//            return;
-//        }
+        if (args.length != 4) {
+            logger.error("please input args: inputFilePath, resultFilePath");
+            return;
+        }
 
         logger.info("Start...");
-//        String carPath = args[0];
-//        String roadPath = args[1];
-//        String crossPath = args[2];
-//        String answerPath = args[3];
+        String carPath = args[0];
+        String roadPath = args[1];
+        String crossPath = args[2];
+        String answerPath = args[3];
         
-        String carPath = "SDK_java\\bin\\config\\car.txt";
-        String roadPath = "SDK_java\\bin\\config\\road.txt";
-        String crossPath = "SDK_java\\bin\\config\\cross.txt";
-        String answerPath = "SDK_java\\bin\\config\\answer.txt";
+//        String carPath = "SDK_java\\bin\\config\\car.txt";
+//        String roadPath = "SDK_java\\bin\\config\\road.txt";
+//        String crossPath = "SDK_java\\bin\\config\\cross.txt";
+//        String answerPath = "SDK_java\\bin\\config\\answer.txt";
         
         logger.info("carPath = " + carPath + " roadPath = " + roadPath + " crossPath = " + crossPath + " and answerPath = " + answerPath);
         // TODO:read input files
@@ -567,7 +632,7 @@ public class Main {
 			FileOpt.readFile(carPath, cars, "Car");
 			FileOpt.readFile(crossPath, crosses, "Cross");
 			FileOpt.readFile(roadPath, roads, "Road");
-
+			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -581,6 +646,7 @@ public class Main {
 				return cross1.getId() - cross2.getId();
 			}
         });
+       
         // TODO: calc
         // init
         for (int i = 0; i < roads.size(); i++) {
@@ -611,22 +677,19 @@ public class Main {
         			road.setFromDirMap(dirMap);
         		} 
         		if (road.getTo() == cross.getId() && road.getIsDuplex() == 1) {
-        			road.setFromDirMap(dirMap);
+        			road.setToDirMap(dirMap);
         		}
         	}
         }
-        
+     
         
         for (int i = 0; i < cars.size(); i++) {
         	Car car = (Car)cars.get(i);
         	ArrayList<Integer> list = dij(car);
-//        	// 车的出发时间，都向后推迟一个随机数，避免堵塞
-//        	int randNum =   random(1, cars.size() / 4 ) / 3;
-//        	car.setRealTime(car.getPlanTime() + randNum);
         	car.setRoadList(list);
         }
-        int range = cars.size() / 5;
-        int step = cars.size() / 10;
+        int range = cars.size() <= 10 ? cars.size() : cars.size() / 5;
+        int step = 5;
         while(true) {
         	int startTime = INF;
         	// 初始化每辆车

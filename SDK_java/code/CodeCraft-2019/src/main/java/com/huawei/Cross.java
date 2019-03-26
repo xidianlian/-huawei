@@ -43,8 +43,10 @@ public class Cross {
 
 	@Override
 	public String toString() {
-		return "Cross [id=" + id + ", roadIds=" + Arrays.toString(roadIds) + "]";
+		return "Cross [id=" + id + ", roadIds=" + Arrays.toString(roadIds) + ", dirMap=" + dirMap + "]";
 	}
+
+	
 	
 	
 }

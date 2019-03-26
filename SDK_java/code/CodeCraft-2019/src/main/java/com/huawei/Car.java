@@ -4,12 +4,14 @@ import java.util.ArrayList;
 
 public class Car {
 	
-	private int id, from, to, speed, planTime, realTime;
-	
-	private  ArrayList<Integer> roadList;
 	// state :
 	// (0, 在车库没出发) (1, 路上,准备出发) (2, 等待) (3, 终止) (4, 到达)
 	private int state;
+	
+	private int id, from, to, speed, planTime, realTime;
+	
+	private  ArrayList<Integer> roadList;
+	
 	
 	// position 坐标从1开始
 	// forward 1(在路正向车道) -1(在路的反向车道)
@@ -17,7 +19,7 @@ public class Car {
 	
 	private String dir;
 	
-	// 如果为负一，
+	// 如果大小为roadList大小，那么就走完
 	private int nextRoadIndex;
 	
 	public Car(int id, int from, int to, int speed, int planTime) {
@@ -30,7 +32,15 @@ public class Car {
 		this.state = 0;
 		this.nextRoadIndex = 0;
 	}
-	
+	public void nextRoadIndexPlus() {
+		this.nextRoadIndex++;
+	}
+	public boolean isEnd() {
+		if (this.nextRoadIndex == roadList.size()) {
+			return true;
+		}
+		return false;
+	}
 	public void setCarInfo(int roadId, int forward, int cid, int position) {
 		this.roadId = roadId;
 		this.forward = forward;
@@ -148,11 +158,16 @@ public class Car {
 	public void setPlanTime(int planTime) {
 		this.planTime = planTime;
 	}
-	
-	
+
 	@Override
 	public String toString() {
-		return "Car [id=" + id + ", from=" + from + ", to=" + to + ", speed=" + speed + ", planTime=" + planTime + "]";
+		return "Car [id=" + id + ", from=" + from + ", to=" + to + ", speed=" + speed + ", planTime=" + planTime
+				+ ", realTime=" + realTime + ", roadList=" + roadList + ", state=" + state + ", roadId=" + roadId
+				+ ", forward=" + forward + ", cid=" + cid + ", position=" + position + ", dir=" + dir
+				+ ", nextRoadIndex=" + nextRoadIndex + "]";
 	}
+
+
+	
 	
 }

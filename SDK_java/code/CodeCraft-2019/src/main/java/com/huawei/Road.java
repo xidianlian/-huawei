@@ -103,5 +103,13 @@ public class Road {
 	public void setToChannels(ArrayList<Channel> toChannels) {
 		this.toChannels = toChannels;
 	}
+
+	@Override
+	public String toString() {
+		return "Road [id=" + id + ", length=" + length + ", speed=" + speed + ", chanNum=" + chanNum + ", from=" + from
+				+ ", to=" + to + ", isDuplex=" + isDuplex + ", fromDirMap=" + fromDirMap + ", toDirMap=" + toDirMap
+				+ "]";
+	}
+
 	
 }
