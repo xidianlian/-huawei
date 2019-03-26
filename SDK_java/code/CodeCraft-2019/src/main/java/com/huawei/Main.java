@@ -41,6 +41,10 @@ public class Main {
     
     private static ArrayList<Object> roads = new ArrayList<Object>();
     
+    private static int runCarsNum;
+    
+    private static int waitNum;
+    
     /**
      * 
      * @param car
@@ -330,11 +334,12 @@ public class Main {
     	if (channels == null) {
     		logger.error("leave channels == null");
     	}
+    	int channelId = car.getCid();
+    	Channel channel = channels.get(channelId);
+    	LinkedList<Car> carList = channel.getCarList();
     	// 到达目的地
     	if (nextRoadIndex == -1) {
-    		int channelId = car.getCid();
-    		Channel channel = channels.get(channelId);
-    		LinkedList<Car> carList = channel.getCarList();
+    		
     		car.setState(4);
     		carList.poll();
     		checkRoadsChannel(curRoad, channel);
@@ -359,12 +364,16 @@ public class Main {
 			logger.error("nextForward == 0");
 		}
 		boolean isLeave = checkNextChannels(car, curRoad, nextRoad, nextChannels, nextForward);
+		if (isLeave == true) {
+			checkRoadsChannel(curRoad, channel);
+		}
     	return isLeave;
     }
-    public static void checkCrosses() {
+    public static boolean checkCrosses() {
+    	int lastWaitNum = waitNum;
     	// 出现死锁 或者 全部车到达终止状态
     	while(true) {
-    		boolean isHasCarRun = false;
+    		
     		for (int i = 0; i < crosses.size(); i++) {
     			Cross cross = (Cross) crosses.get(i);
     			// 映射为<roaId, index>
@@ -448,29 +457,80 @@ public class Main {
 	    			}
 	    		}
     		}
-    		if (isHasCarRun == false) {
+    		if (waitNum == lastWaitNum) {
+    			return false;
+    		}
+    		if (waitNum == 0) {
     			break;
     		}
     	}
-    	
+    	return true;
     }
-    public static boolean judge(int startTime) {
-    
-    	for (int time = startTime; ; time++) {
-    		boolean flag = true;
-    		for (int i = 0; i < cars.size(); i++) {
-    			Car car = (Car) cars.get(i);
-    			if (!(car.getState() == 3)) {
-    				flag = false;
+    public static void driveCarInGarage(int time) {
+    	for (int i = 0 ; i < cars.size(); i++) {
+    		Car car = (Car) cars.get(i);
+    		if (car.getState() != 0 || car.getRealTime() <= time) {
+    			continue;
+    		}
+    		int nextRoadId = car.getRoadList().get(0);
+    		Road road = (Road) roads.get(roadsMp.get(nextRoadId));
+    		ArrayList<Channel> channels = null;
+    		int forward = 0;
+    		if (car.getFrom() == road.getFrom()) {
+    			channels = road.getFromChannels();
+    			forward = 1;
+    		} else if(road.getIsDuplex() == 1 && car.getFrom() == road.getTo()) {
+    			channels = road.getToChannels();
+    			forward = -1;
+    		}
+    		if (channels == null ) {
+    			logger.error("driveCarInGarage channles == null!");
+    		}
+    		int maxSpeed = Math.min(car.getSpeed(), road.getSpeed());
+    		for (int j = 0 ; j < channels.size(); j++) {
+    			Channel channel = channels.get(j);
+    			LinkedList<Car> carList = channel.getCarList();
+    			Car lastCar = carList.getLast();
+    			if (lastCar.getState() != 3) {
+    				logger.error("driveCarInGarage lastCar.state != 3");
+    				return;
+    			}
+    			if (lastCar.getPosition() == road.getLength()) {
+    				continue;
+    			}
+    			int couldRun = road.getLength() - lastCar.getPosition();
+    			if (maxSpeed >= couldRun) {
+    				car.setState(3);
+    				car.setCarInfo(nextRoadId, forward, j, lastCar.getPosition() + 1);
+    				carList.add(car);
+    				runCarsNum++;
+    				break;
+    			} else {
+    				car.setState(3);
+    				car.setCarInfo(nextRoadId, forward, j, road.getLength() - maxSpeed + 1);
+    				carList.add(car);
+    				runCarsNum++;
     				break;
     			}
     		}
-    		if (flag == true) {
-    			return true;
-    		}
-    		checkRoads();
-    		checkCrosses();
     	}
+    }
+    // 判断器 包含三大步
+    public static boolean judge(int startTime) {
+    	waitNum = 0;
+    	runCarsNum = 0;
+    	for (int time = startTime; ; time++) {
+    		checkRoads();
+    		boolean isConflict = checkCrosses();
+    		if (isConflict) {
+    			return false;
+    		}
+    		if (runCarsNum == cars.size() && waitNum == 0) {
+    			break;
+    		}
+    		driveCarInGarage(time);
+    	}
+    	return true;
     }
     
     public static int random(int min, int max) {
@@ -512,19 +572,7 @@ public class Main {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        cars.sort(new Comparator<Object>() {
-			@Override
-			public int compare(Object o1, Object o2) {
-				Car car1  = (Car)o1;
-				Car car2  = (Car)o2;
-				if (car1.getRealTime() == car2.getRealTime()) {
-					return car1.getId() - car2.getId();
-				} else {
-					return car1.getRealTime() - car2.getRealTime();
-				}
-				
-			}
-		});
+        
         crosses.sort(new Comparator<Object>() {
 			@Override
 			public int compare(Object o1, Object o2) {
@@ -533,10 +581,6 @@ public class Main {
 				return cross1.getId() - cross2.getId();
 			}
         });
-//		for (int i = 0 ; i < cars.size(); i++) {
-//			Car car = (Car)cars.get(i);
-//			logger.info(car.toString());
-//		}
         // TODO: calc
         // init
         for (int i = 0; i < roads.size(); i++) {
@@ -576,9 +620,9 @@ public class Main {
         for (int i = 0; i < cars.size(); i++) {
         	Car car = (Car)cars.get(i);
         	ArrayList<Integer> list = dij(car);
-        	// 车的出发时间，都向后推迟一个随机数，避免堵塞
-        	int randNum =   random(1, cars.size() / 4 ) / 3;
-        	car.setRealTime(car.getPlanTime() + randNum);
+//        	// 车的出发时间，都向后推迟一个随机数，避免堵塞
+//        	int randNum =   random(1, cars.size() / 4 ) / 3;
+//        	car.setRealTime(car.getPlanTime() + randNum);
         	car.setRoadList(list);
         }
         int range = cars.size() / 5;
@@ -595,6 +639,20 @@ public class Main {
         		// 所有车都没出发
         		car.setState(0);
         	}
+        	cars.sort(new Comparator<Object>() {
+    			@Override
+    			public int compare(Object o1, Object o2) {
+    				Car car1  = (Car)o1;
+    				Car car2  = (Car)o2;
+    				if (car1.getRealTime() == car2.getRealTime()) {
+    					return car1.getId() - car2.getId();
+    				} else {
+    					return car1.getRealTime() - car2.getRealTime();
+    				}
+    				
+    			}
+    		});
+        	
         	if (judge(startTime) == true) {
         		break;
         	} 

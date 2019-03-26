@@ -12,6 +12,7 @@ public class Car {
 	private int state;
 	
 	// position 坐标从1开始
+	// forward 1(在路正向车道) -1(在路的反向车道)
 	private int roadId, forward, cid, position;
 	
 	private String dir;
@@ -27,7 +28,7 @@ public class Car {
 		this.planTime = planTime;
 		this.realTime = planTime;
 		this.state = 0;
-	
+		this.nextRoadIndex = 0;
 	}
 	
 	public void setCarInfo(int roadId, int forward, int cid, int position) {
