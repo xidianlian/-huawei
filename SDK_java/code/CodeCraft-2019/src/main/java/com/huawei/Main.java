@@ -633,12 +633,11 @@ public class Main {
     }
     public static void main(String[] args)
     {
+    	 logger.info("Start...");
 //        if (args.length != 4) {
 //            logger.error("please input args: inputFilePath, resultFilePath");
 //            return;
 //        }
-
-        logger.info("Start...");
 //        String carPath = args[0];
 //        String roadPath = args[1];
 //        String crossPath = args[2];
@@ -716,17 +715,17 @@ public class Main {
         	car.setRoadList(list);
         }
 //        int range = cars.size() <= 10 ? cars.size() : cars.size() / 10;
-        int range =  10;
-        int step = cars.size() / 20 + 1;
+        int range = cars.size() <= 10 ? cars.size() : cars.size() / 10;
+        int step = cars.size() / 55 + 1;
         int cnt = 0;
-        int mod = 3;
+        int mod = 5;
         while(true) {
         	int startTime = INF;
         	// 初始化每辆车
         	for (int i = 0; i < cars.size(); i++) {
         		Car car = (Car) cars.get(i);
         		int randNum = random(0, range);
-        		int realTime = car.getPlanTime() + randNum ;
+        		int realTime = car.getPlanTime() + randNum * 2 / car.getSpeed();
         		startTime = Math.min(startTime, realTime);
         		car.setRealTime(realTime);
         		// 所有车都没出发
@@ -752,6 +751,7 @@ public class Main {
         		road.clearChannels();
         	}
         	if (judge(startTime) == true) {
+        		logger.info(range + " success!");
         		break;
         	} else {
         		logger.info(range + " dead lock!");
