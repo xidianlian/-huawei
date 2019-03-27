@@ -2,6 +2,7 @@ package com.huawei;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 public class Road {
 	
 	private int id, length, speed, chanNum, from, to, isDuplex;
@@ -23,16 +24,29 @@ public class Road {
 		this.from = from;
 		this.to = to;
 		this.isDuplex = isDuplex;
-		for (int i = 1; i <= chanNum; i++) {
+		for (int i = 0; i < chanNum; i++) {
 			fromChannels.add(new Channel(i));
 		}
 		if (isDuplex == 1) {
-			for (int i = 1; i <= chanNum; i++) {
+			for (int i = 0; i < chanNum; i++) {
 				toChannels.add(new Channel(i));
 			}
 		}
 	}
-	
+	public void clearChannels() {
+		for (int i = 0; i < chanNum; i++) {
+			Channel channel = fromChannels.get(i);
+			LinkedList<Car> carList = channel.getCarList();
+			carList.clear();
+		}
+		if (isDuplex == 1) {
+			for (int i = 0; i < chanNum; i++) {
+				Channel channel = toChannels.get(i);
+				LinkedList<Car> carList = channel.getCarList();
+				carList.clear();
+			}
+		}
+	}
 	public HashMap<String, Integer> getFromDirMap() {
 		return fromDirMap;
 	}

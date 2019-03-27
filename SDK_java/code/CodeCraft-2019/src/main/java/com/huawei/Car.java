@@ -162,7 +162,7 @@ public class Car {
 	@Override
 	public String toString() {
 		return "Car [id=" + id + ", from=" + from + ", to=" + to + ", speed=" + speed + ", planTime=" + planTime
-				+ ", realTime=" + realTime + ", roadList=" + roadList + ", state=" + state + ", roadId=" + roadId
+				+ ", realTime=" + realTime +  ", state=" + state + ", roadList=" + roadList  + ", roadId=" + roadId
 				+ ", forward=" + forward + ", cid=" + cid + ", position=" + position + ", dir=" + dir
 				+ ", nextRoadIndex=" + nextRoadIndex + "]";
 	}
