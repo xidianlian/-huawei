@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Random;
 import java.util.TreeMap;
 
@@ -33,7 +34,7 @@ public class Main {
     
     private static HashMap<Integer, Integer> roadsMp = new HashMap<Integer, Integer>();
     
-    private static ArrayList<Object> cars = new ArrayList<Object>();
+    
     
     private static ArrayList<Object> crosses = new ArrayList<Object>();
     
@@ -47,6 +48,8 @@ public class Main {
     
     // 到达终点的车
     private static int arrivedNum;
+    
+    private static int time;
     /**
      * 
      * @param car
@@ -68,7 +71,7 @@ public class Main {
     		dis[i] = INF;
     		vis[i] = 0;
     	}
-    	LinkedList<Node> que = new LinkedList<Node>();
+    	PriorityQueue<Node> que = new PriorityQueue<Node>();
     	int index = crossMp.get(car.getFrom());
     	que.add(new Node(index, 0));
     	dis[index] = 0;
@@ -80,8 +83,27 @@ public class Main {
     		vis[node.crossIndex] = 1;
     		Cross cro = (Cross)crosses.get(node.crossIndex);
     		int[] roadIds = cro.getRoadIds();
-    		for (int i = 0 ; i < roadIds.length; i++) {
-    			int roadId = roadIds[i];
+    		int[] flag = new int[4];
+    		for (int i = 0 ; i < 4; i++) {
+    			flag[i] = 0;
+    		}
+    		for (;;) {
+    			int yes = 0;
+    			for (int i = 0 ; i < 4; i++) {
+        			if (flag[i] != 1) {
+        				yes = 1;
+        			}
+        		}
+    			if (yes == 0) {
+    				break;
+    			}
+    			int randomI = random(0, 4);
+    			if (flag[randomI] == 0) {
+    				flag[randomI] = 1;
+    			} else {
+    				continue;
+    			}
+    			int roadId = roadIds[randomI];
     			if (roadId == -1) {
     				continue;
     			}
@@ -122,6 +144,8 @@ public class Main {
     	for (int i = 0; i < reverList.size(); i++) {
     		ansList.add(reverList.get(reverList.size() - i - 1));
     	}
+    	endIndex = crossMp.get(car.getTo());
+    	car.setTime(dis[endIndex]);
     	return ansList;
     }
     /**
@@ -172,7 +196,7 @@ public class Main {
 					car.setState(3);
 				} else {
 					if (lastCar.getState() == 3) {
-						car.setPosition(car.getPosition() - length);
+						car.setPosition(lastCar.getPosition() + 1);
 						car.setState(3);
 						endNum++;
 					} else if (lastCar.getState() == 2) {
@@ -240,8 +264,46 @@ public class Main {
     	}
     	return car;
     }
+    public static int getIndexByDir(int curDirIndex, String dir) {
+    	if (curDirIndex == 0) {
+    		if ("D".equals(dir)) {
+    			return 2;
+    		} else if ("L".equals(dir)) {
+    			return 1;
+    		} else {
+    			return 3;
+    		}
+    	} else if (curDirIndex == 1) {
+    		if ("D".equals(dir)) {
+    			return 3;
+    		} else if ("L".equals(dir)) {
+    			return 2;
+    		} else {
+    			return 0;
+    		}
+    	} else if (curDirIndex == 2) {
+    		if ("D".equals(dir)) {
+    			return 0;
+    		} else if ("L".equals(dir)) {
+    			return 3;
+    		} else {
+    			return 1;
+    		}
+    	} else {
+    		if ("D".equals(dir)) {
+    			return 1;
+    		} else if ("L".equals(dir)) {
+    			return 0;
+    		} else {
+    			return 2;
+    		}
+    	}
+    }
     public static String judgeDir(int curDirIndex, int nextDirIndex) {
     	if (curDirIndex == 0) {
+    		if (nextDirIndex == 0) {
+    			logger.info("dir err!!");
+    		}
 			if (nextDirIndex == 1) {
 				return "L";
 			} else if (nextDirIndex == 2) {
@@ -250,6 +312,9 @@ public class Main {
 				return "R";
 			} 
 		} else if (curDirIndex == 1) {
+			if (nextDirIndex == 1) {
+    			logger.info("dir err!!");
+    		}
 			if (nextDirIndex == 0) {
 				return "R";
 			} else if (nextDirIndex == 2) {
@@ -258,39 +323,48 @@ public class Main {
 				return "D";
 			} 
 		} else if (curDirIndex == 2) {
+			if (nextDirIndex == 2) {
+    			logger.info("dir err!!");
+    		}
 			if (nextDirIndex == 0) {
 				return "D";
 			} else if (nextDirIndex == 1) {
 				return "R";
 			} else {
 				return "L";
+			}
+		} else if (curDirIndex == 3){
+			if (nextDirIndex == 3) {
+    			logger.info("dir err!!");
+    		}
+			if (nextDirIndex == 0) {
+				return "L";
+			} else if (nextDirIndex == 1) {
+				return "D";
+			} else {
+				return "R";
 			}
 		} else {
-			if (nextDirIndex == 0) {
-				return "L";
-			} else if (nextDirIndex == 1) {
-				return "D";
-			} else {
-				return "R";
-			}
-		} 
+			logger.info("curDirIndex ERRRRRR!!");
+			return null;
+		}
     }
-    public static String getCarDir(int curDirIndex, Car car, TreeMap<Integer, Integer> dirMap) {
+    public static String getCarDir(Car car, int curIndex, TreeMap<Integer, Integer> dirMap) {
     	int nextRoadIndex =  car.getNextRoadIndex();
     	if (car.isEnd()) {
     		return "D";
     	}
     	// 注意数组越界
 		Integer nextRoadId = car.getRoadList().get(nextRoadIndex);
-		Integer nextDirIndex = dirMap.get(nextRoadId);
-		
-		if (nextDirIndex == null) {
-			logger.error("getCarDir: nextDirIndex == null!!");
+//		logger.info(car.getRoadId() + " : " + nextRoadId);
+		if (nextRoadId == null) {
+			logger.info("nextRoadId == null !!??");
 		}
-//		System.out.println(nextRoadId);
-//		System.out.println(nextDirIndex);
-//		System.out.println(dirMap);
-		return judgeDir(curDirIndex,  nextDirIndex);
+		Integer nextIndex = dirMap.get(nextRoadId);
+		if (nextIndex == null) {
+			logger.error("nextIndex == null");
+		}
+		return judgeDir(curIndex, nextIndex);
     }
     // 判断当前车能不能进入下一道路
     public static boolean checkNextChannels(Car car, Road curRoad, Road nextRoad, ArrayList<Channel> nextChannels, int nextForward) {
@@ -316,16 +390,26 @@ public class Main {
     		LinkedList<Car> carList = channel.getCarList();
     		int s2 = v2 - s1 < 0 ? 0 : v2 - s1;
     		if (carList.isEmpty()) {
-    			car.setCarInfo(nextRoad.getId(), nextForward, i, nextRoad.getLength() - s2 + 1);
-    			car.setState(3);
-    			endNum++;
-    			car.nextRoadIndexPlus();
-    			channel.getCarList().add(car);
-				curChannel.getCarList().poll();
-				return true;
+    			if (s2 == 0) {
+    				car.setPosition(1);
+        			endNum++;
+        			car.setState(3);
+        			return true;
+    			} else {
+    				car.setCarInfo(nextRoad.getId(), nextForward, i, nextRoad.getLength() - s2 + 1);
+	    			car.setState(3);
+	    			endNum++;
+	    			car.nextRoadIndexPlus();
+	    			channel.getCarList().add(car);
+					curChannel.getCarList().poll();
+					return true;
+    			}
     		}
     		Car endCar = carList.getLast();
     		int couldRun = nextRoad.getLength() - endCar.getPosition();
+    		if (endCar.getPosition() > nextRoad.getLength()) {
+    			logger.error("endCar.getPosition > nextRoad.getLength !!!");
+    		}
     		
     		if (s2 == 0) {
     			car.setPosition(1);
@@ -355,16 +439,20 @@ public class Main {
         				return true;
     				} else {
     					car.setState(2);
+    					if (endCar.getState() != 2) {
+    						logger.info("endCar.State != 2 ??");
+    					}
     					return false;
     				}
     			}
     		}
     	}
     	// 所有道路都不能走，且最后一辆车都为终止态，那么此车也为终止
+    	car.setPosition(1);
     	car.setState(3);
     	endNum++;
-    	checkRoadsChannel(curRoad, curChannel);
-    	return false;
+//    	checkRoadsChannel(curRoad, curChannel);
+    	return true;
     }
     public static boolean leave(Road curRoad, Cross curCross, Car car) {
     	int nextRoadIndex =  car.getNextRoadIndex();
@@ -384,7 +472,10 @@ public class Main {
     	if (car.isEnd()) {
     		arrivedNum++;
     		car.setState(4);
-    		carList.poll();
+    		Car poll = carList.poll();
+    		if (poll.getId() != car.getId()) {
+    			logger.error("poll.id != car.id");
+    		}
     		checkRoadsChannel(curRoad, channel);
     		return true;
     	}
@@ -418,97 +509,121 @@ public class Main {
     	while(true) {
     		for (int i = 0; i < crosses.size(); i++) {
     			Cross cross = (Cross) crosses.get(i);
-    			// 映射为<roaId, index>
+    			// 映射为<roadId, index>
 	    		TreeMap<Integer, Integer> dirMap = cross.getDirMap();
-	    		
-    			while (true) {
-    				// 先把四个方向第一优先级的车存下来 <roadId, Car>
-		    		TreeMap<Integer, Car> carMap = new TreeMap<Integer, Car>();
-		    		// 每个路口按道路id升序
-		    		for (Map.Entry<Integer, Integer> entry : dirMap.entrySet()) {
-		    			int roadId = entry.getKey();
-		    			int curDirIndex = entry.getValue();
+	    		// <index, roadId>
+	    		HashMap<Integer, Integer> indexMap = cross.getIndexMap();
+    				for (Map.Entry<Integer, Integer> entry : dirMap.entrySet()) {
+    					int roadId = entry.getKey();
+    					int curIndex = entry.getValue();
 		    			if (roadId == -1) {
 		    				continue;
 		    			}
-		    			Road road = (Road) roads.get(roadsMp.get(roadId)); 
-		    			Car car = null;
-		    			// 第一优先级不能走，那么其他channel的也不能走
-		    			if (road.getTo() == cross.getId()) {
-		    				car = getChannelFirstCar(road.getFromChannels());
-		    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
-		    				car = getChannelFirstCar(road.getToChannels());
-		    			}
-		    			// 没发现第一优先级的车，那么就不调度，换下一个
-		    			if (car == null) {
-		    				continue;
-		    			}
-		    			String carDir = getCarDir(curDirIndex, car, dirMap);
-		    			car.setDir(carDir);
-		    			carMap.put(roadId, car);
-		    		}
-		    		// 四个方向的车，只要出发了一辆，就标记为true
-		    		boolean flag = false;
-		    		// 注意：即使车快要到达终点，也会受到路口其他车的影响（按照交通规则）
-	    			for (Map.Entry<Integer, Car> entry : carMap.entrySet()) {
-		    			int roadId = entry.getKey();
-		    			Car car = entry.getValue();
-		    			if (car.getState() != 2) {
-		    				logger.info("第一优先级的车 state != 2");
-		    			}
 		    			Road road = (Road) roads.get(roadsMp.get(roadId));
-		    			HashMap<String, Integer> roadDirMap = new HashMap<String, Integer>();
-		    			if (road.getTo() == cross.getId()) {
-		    				roadDirMap = road.getToDirMap();
-		    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
-		    				roadDirMap = road.getFromDirMap();
-		    			}
-		    			
-		    			if (car.getDir() == "D") {
-		    				boolean isLeave = leave(road, cross, car);
-		    				if (isLeave) {
-		    					flag = true;
-		    				} 
-		    			} else if (car.getDir() == "L") {
-		    				Integer rRoadId = roadDirMap.get("R");
-		    				Car rCar = null;
-		    				if (rRoadId != null) {
-		    					rCar = carMap.get(rRoadId);
-		    				}
-		    				// 右边车为直行，那么它等待
-		    				if (rCar == null || rCar.getDir() != "D") {
-		    					boolean isLeave = leave(road, cross, car);
-		    					if (isLeave) {
-			    					flag = true;
+		    			// 如果这条路的第一优先级 每次都有，那么可以一直走
+		    			while(true) {
+		    				boolean isRun = false;
+		    				// 如果没有车出发，那么会跳出循环，让下一road获得权限
+		    				Car car = null;
+		    				// 第一优先级不能走，那么其他channel的也不能走
+			    			if (road.getTo() == cross.getId()) {
+			    				car = getChannelFirstCar(road.getFromChannels());
+			    			} else if (road.getIsDuplex() == 1 && road.getFrom() == cross.getId()) {
+			    				car = getChannelFirstCar(road.getToChannels());
+			    			}
+			    			// 没发现第一优先级的车，那么就不调度，换下一条路
+			    			if (car == null) {
+			    				break;
+			    			}
+			    			
+			    			String carDir = getCarDir(car, curIndex ,dirMap);
+			    			if (carDir == null) {
+			    				logger.error("carDir return value == null");
+			    			}
+			    			car.setDir(carDir);
+			    			
+			    			if ("D".equals(carDir)) {
+			    				boolean isLeave = leave(road, cross, car);
+			    				if (isLeave) {
+			    					isRun = true;
 			    				} 
-		    				} 
-		    				
-		    			} else if (car.getDir() == "R") {
-		    				Integer lRoadId = roadDirMap.get("L");
-		    				Integer dRoadId = roadDirMap.get("D");
-		    				Car lCar = null;
-		    				Car dCar = null;
-		    				if (lRoadId != null) {
-		    					lCar = carMap.get(lRoadId);
-		    				}
-		    			    if (dRoadId != null) {
-		    			    	dCar = carMap.get(dRoadId);	
-		    			    }
-		    				// 先看左边车是否直行，再看前方车是否左转
-		    				if ((lCar == null || lCar.getDir() != "D") && (dCar == null || dCar.getDir() != "L")) {
-		    					boolean isLeave = leave(road, cross, car);
-		    					if (isLeave) {
-			    					flag = true;
+			    			} else if ("L".equals(carDir)) {
+			    				int rIndex = getIndexByDir(curIndex, "R");
+			    				Integer rRoadId = indexMap.get(rIndex);
+			    				if (rRoadId == null) {
+			    					logger.error("rRoadId == null");
 			    				} 
-		    				}
-		    			}
+		    					Car rCar = null;
+		    					String rDir = null;
+		    					if (rRoadId.intValue() != -1)
+		    					{
+		    						Road rRoad = (Road) roads.get(roadsMp.get(rRoadId));
+		    						if (rRoad.getTo() == cross.getId()) {
+			    						rCar = getChannelFirstCar(rRoad.getFromChannels());
+					    			} else if (rRoad.getIsDuplex() == 1 && rRoad.getFrom() == cross.getId()) {
+					    				rCar = getChannelFirstCar(rRoad.getToChannels());
+					    			}
+		    						if (rCar != null) {
+		    							rDir = getCarDir(rCar, rIndex ,dirMap);
+		    						}
+		    					}
+		    					if (rCar != null && rDir == null) {
+			    					logger.error("rDir == null");
+			    				}
+			    				if (rCar == null || !"D".equals(rDir)) {
+			    					boolean isLeave = leave(road, cross, car);
+			    					if (isLeave) {
+				    					isRun = true;
+				    				}
+			    				}
+			    			} else if ("R".equals(carDir)) {
+			    				/*********看左边的是否直行**********/
+			    				int lIndex = getIndexByDir(curIndex, "L");
+			    				Integer lRoadId = indexMap.get(lIndex);
+			    				Car lCar = null;
+			    				String lDir = null;
+			    				if (lRoadId.intValue() != -1) {
+			    					Road lRoad = (Road) roads.get(roadsMp.get(lRoadId));
+		    						if (lRoad.getTo() == cross.getId()) {
+			    						lCar = getChannelFirstCar(lRoad.getFromChannels());
+					    			} else if (lRoad.getIsDuplex() == 1 && lRoad.getFrom() == cross.getId()) {
+					    				lCar = getChannelFirstCar(lRoad.getToChannels());
+					    			}
+		    						if (lCar != null) {
+		    							lDir = getCarDir(lCar, lIndex, dirMap);
+		    						}
+			    				}
+			    				/*****对面的是否左转******/
+			    				int dIndex = getIndexByDir(curIndex, "D");
+			    				Integer dRoadId = indexMap.get(dIndex);
+			    				Car dCar = null;
+			    				String dDir = null;
+			    				if (dRoadId.intValue() != -1) {
+			    					Road dRoad = (Road) roads.get(roadsMp.get(dRoadId));
+		    						if (dRoad.getTo() == cross.getId()) {
+			    						dCar = getChannelFirstCar(dRoad.getFromChannels());
+					    			} else if (dRoad.getIsDuplex() == 1 && dRoad.getFrom() == cross.getId()) {
+					    				dCar = getChannelFirstCar(dRoad.getToChannels());
+					    			}
+		    						if (dCar != null) {
+		    							dDir = getCarDir(dCar, dIndex, dirMap);
+		    						}
+			    				}
+			    				if ((lCar == null || !"D".equals(lDir)) && (dCar == null || !"L".equals(dDir))) {
+			    					boolean isLeave = leave(road, cross, car);
+			    					if (isLeave) {
+				    					isRun = true;
+				    				} 
+			    				}
+			    			} else {
+			    				logger.error("car dir error!");
+			    			}
+			    			if (isRun == false) {
+			    				break;
+			    			}
+		    			}// one road
 		    			
-	    			}
-	    			if (flag == false) {
-	    				break;
-	    			}
-	    			
-	    		}// four dir
+    				}// four road
     		} // all crosses
     		int waitNum = runCarsNum - endNum - arrivedNum;
 //    		logger.info("lastWait = " + lastWaitNum);
@@ -524,7 +639,7 @@ public class Main {
     	}
     	return true;
     }
-    public static void driveCarInGarage(int time) {
+    public static void driveCarInGarage(int time, ArrayList<Object> cars) {
     	for (int i = 0 ; i < cars.size(); i++) {
     		Car car = (Car) cars.get(i);
     		if (car.getState() != 0 || car.getRealTime() > time) {
@@ -589,14 +704,14 @@ public class Main {
     	}
     }
     // 判断器 包含三大步
-    public static boolean judge(int startTime) {
+    public static boolean judge(int startTime, ArrayList<Object> cars) {
     	// 不能单独计算等待的车辆，因为，在checkRoads函数会复用，
     	// 在第一步和第二步会用，按照setStatus==2 加减 waitNum 不可取
     	// 然而，终止的车辆是不会有变化的
     	// 所以 waitNum = runCarsNum(在路上的车) - endNum 
     	runCarsNum = 0;
     	arrivedNum = 0;
-    	for (int time = startTime; ; time++) {
+    	for (time = startTime; ; time++) {
     		// 终止状态的车每次置零
     		endNum = 0;
     		checkRoads();
@@ -607,13 +722,15 @@ public class Main {
     			boolean success = checkCrosses();	
     			if (success == false) {
     				logger.info("waitNum = " + (runCarsNum - endNum- arrivedNum));
-        			return false;
+
+    				return false;
         		}
     		}
     		if (arrivedNum == cars.size()) {
+    			logger.info("time : " + time);
     			break;
     		}
-    		driveCarInGarage(time);
+    		driveCarInGarage(time, cars);
     		// init state
     		for (int i = 0 ; i < cars.size(); i++) {
     			Car car = (Car) cars.get(i);
@@ -652,7 +769,21 @@ public class Main {
         // TODO:read input files
         logger.info("start read input files");
         
-      
+        ArrayList<Object> cars = new ArrayList<Object>();
+        
+        PriorityQueue<Object> priCars = new PriorityQueue<Object>(new Comparator<Object>() {
+			@Override
+			public int compare(Object o1, Object o2) {
+				Car car1 = (Car) o1;
+				Car car2 = (Car) o2;
+				if (car1.getRealTime() == car2.getRealTime()) {
+					return car1.getId() - car2.getId();
+				} else {
+					return car1.getRealTime() - car2.getRealTime();
+				}
+			}
+        });
+        ArrayList<Object> runCars = new ArrayList<Object>();
         try {
 			FileOpt.readFile(carPath, cars, "Car");
 			FileOpt.readFile(crossPath, crosses, "Cross");
@@ -682,51 +813,91 @@ public class Main {
         for (int i = 0; i < crosses.size(); i++) {
         	Cross cross = (Cross)crosses.get(i);
         	crossMp.put(cross.getId(), i);
-        	int[] roadIds = cross.getRoadIds();
-        	for (int j = 0; j < roadIds.length; j++) {
-        		int roadId1 = roadIds[j];
-        		if (roadId1 == -1) {
-        			continue;
-        		}
-        		Road road = (Road) roads.get(roadsMp.get(roadId1));
-        		HashMap<String, Integer> dirMap = new HashMap<String, Integer>();
-        		
-        		for (int k = 0; k < roadIds.length; k++) {
-        			int roadId2 = roadIds[k];
-        			if (k == j || roadId2 == -1) {
-        				continue;
-        			}
-        			String dir = judgeDir(j, k);
-        			dirMap.put(dir, roadId2);
-        		}
-        		if (road.getFrom() == cross.getId()) {
-        			road.setFromDirMap(dirMap);
-        		} 
-        		if (road.getTo() == cross.getId() && road.getIsDuplex() == 1) {
-        			road.setToDirMap(dirMap);
-        		}
-        	}
         }
-     
         
         for (int i = 0; i < cars.size(); i++) {
         	Car car = (Car)cars.get(i);
         	ArrayList<Integer> list = dij(car);
         	car.setRoadList(list);
+        	priCars.add(car);
         }
-//        int range = cars.size() <= 10 ? cars.size() : cars.size() / 10;
-        int range = cars.size() <= 10 ? cars.size() : cars.size() / 10;
-        int step = cars.size() / 55 + 1;
+        
+    	cars.sort(new Comparator<Object>() {
+			@Override
+			public int compare(Object o1, Object o2) {
+				Car car1  = (Car)o1;
+				Car car2  = (Car)o2;
+				if (car1.getRealTime() == car2.getRealTime()) {
+					return car1.getId() - car2.getId();
+				} else {
+					return car1.getRealTime() - car2.getRealTime();
+				}
+				
+			}
+		});
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+    	
+//    	int lastTime = 0;
+//        int posTime = 0;
+//        int minTime = INF;
+//    	for (int i = 0; i < cars.size(); i++) {
+//    		Car car = (Car) cars.get(i);
+//    		int runCarsSize = runCars.size();
+//    		if (runCarsSize == 0) {
+//    			car.setRealTime(Math.max(posTime, car.getPlanTime()));
+//    			minTime = Math.min(car.getRealTime(), minTime);
+//    			runCars.add(car);
+//    		} else {
+//    			Car lastCar = (Car) runCars.get(runCarsSize -1);
+//    			car.setRealTime(car.getPlanTime() - lastCar.getPlanTime() + lastCar.getRealTime());
+//    			minTime = Math.min(car.getRealTime(), minTime);
+//    			runCars.add(car);
+//    		}
+//    		for (int j = 0; j < roads.size(); j++) {
+//        		Road road = (Road) roads.get(j);
+//        		road.clearChannels();
+//        	}
+//    		for (int j = 0; j < runCars.size(); j++) {
+//    			Car runCar = (Car) runCars.get(j);
+//    			runCar.setState(0);
+//    			runCar.setNextRoadIndex(0);
+//    			runCar.setCarInfo(-1, 0, -1, 0);
+//    		}
+//    		if (judge(minTime, runCars)) {
+//    			lastTime = time;
+//    		} else {
+//    			logger.info("runCarsSize = " + runCars.size());
+//    			logger.info("time : " + time);
+//    			logger.info("i: " + i);
+//    			runCars.clear();
+//    			posTime = lastTime + 1;
+//    			car.setRealTime(Math.max(posTime, car.getPlanTime()));
+//    			runCars.add(car);
+//    			
+//    		}
+//    	}
+//       
+        int range = 400;
+        int step = 20;
         int cnt = 0;
-        int mod = 5;
+        int mod = 2;
         while(true) {
         	int startTime = INF;
+        	int maxRealTime = 0;
         	// 初始化每辆车
         	for (int i = 0; i < cars.size(); i++) {
         		Car car = (Car) cars.get(i);
         		int randNum = random(0, range);
-        		int realTime = car.getPlanTime() + randNum * 2 / car.getSpeed();
+        		//randNum = randNum - car.getTime()   > 0 ? randNum - car.getTime()  : 0;
+        		int realTime = car.getPlanTime() + randNum;
         		startTime = Math.min(startTime, realTime);
+        		maxRealTime = Math.max(maxRealTime, realTime);
         		car.setRealTime(realTime);
         		// 所有车都没出发
         		car.setState(0);
@@ -750,18 +921,26 @@ public class Main {
         		Road road = (Road) roads.get(i);
         		road.clearChannels();
         	}
-        	if (judge(startTime) == true) {
-        		logger.info(range + " success!");
+        	if (judge(startTime, cars) == true) {
+        		logger.info(range + " success!" + " maxRealTime = " + maxRealTime);
+        		for (int i = 0; i < cars.size(); i++) {
+        			Car car = (Car) cars.get(i);
+        			if (car.getState() != 4) {
+        				logger.info(car.toString() + "not arriaved!!!!!!!!!!!!!!!!!!!");
+        			}
+        		}
         		break;
         	} else {
-        		logger.info(range + " dead lock!");
+        		logger.info(range + " dead lock!" + " maxRealTime = " + maxRealTime);
         	}
         	cnt++;
         	if (cnt % mod == 0) {
+        		cnt = 0;
         		range += step;
         	}
         	
         }
+        
         
         // TODO: write answer.txt
         logger.info("Start write output file");

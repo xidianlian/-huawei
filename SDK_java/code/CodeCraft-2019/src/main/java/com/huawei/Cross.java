@@ -1,6 +1,7 @@
 package com.huawei;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.TreeMap;
 
 public class Cross {
@@ -11,14 +12,25 @@ public class Cross {
 	
 	private TreeMap<Integer, Integer> dirMap = new TreeMap<Integer, Integer>();
 	
+	private HashMap<Integer, Integer> indexMap = new HashMap<Integer, Integer>();
+	
 	public Cross(int id, int[] roadIds) {
 		this.id = id;
 		this.roadIds = roadIds;
 		for (int i = 0; i < 4; i++) {
-				dirMap.put(roadIds[i], i);
+			dirMap.put(roadIds[i], i);
+			indexMap.put(i, roadIds[i]);
 		}
 	}
 	
+	public HashMap<Integer, Integer> getIndexMap() {
+		return indexMap;
+	}
+
+	public void setIndexMap(HashMap<Integer, Integer> indexMap) {
+		this.indexMap = indexMap;
+	}
+
 	public int getId() {
 		return id;
 	}

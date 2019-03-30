@@ -12,9 +12,9 @@ public class Road {
 	// 方向为 to -> from
 	private ArrayList<Channel> toChannels = new ArrayList<Channel>();
 	
-	private HashMap<String, Integer> fromDirMap = new HashMap<String, Integer>();
-	
-	private HashMap<String, Integer> toDirMap = new HashMap<String, Integer>();
+//	private HashMap<String, Integer> fromDirMap = new HashMap<String, Integer>();
+//	
+//	private HashMap<String, Integer> toDirMap = new HashMap<String, Integer>();
 	
 	public Road(int id, int length, int speed, int chanNum, int from, int to, int isDuplex) {
 		this.id = id;
@@ -47,21 +47,21 @@ public class Road {
 			}
 		}
 	}
-	public HashMap<String, Integer> getFromDirMap() {
-		return fromDirMap;
-	}
-
-	public void setFromDirMap(HashMap<String, Integer> fromDirMap) {
-		this.fromDirMap = fromDirMap;
-	}
-
-	public HashMap<String, Integer> getToDirMap() {
-		return toDirMap;
-	}
-
-	public void setToDirMap(HashMap<String, Integer> toDirMap) {
-		this.toDirMap = toDirMap;
-	}
+//	public HashMap<String, Integer> getFromDirMap() {
+//		return fromDirMap;
+//	}
+//
+//	public void setFromDirMap(HashMap<String, Integer> fromDirMap) {
+//		this.fromDirMap = fromDirMap;
+//	}
+//
+//	public HashMap<String, Integer> getToDirMap() {
+//		return toDirMap;
+//	}
+//
+//	public void setToDirMap(HashMap<String, Integer> toDirMap) {
+//		this.toDirMap = toDirMap;
+//	}
 
 	public int getId() {
 		return id;
@@ -121,8 +121,7 @@ public class Road {
 	@Override
 	public String toString() {
 		return "Road [id=" + id + ", length=" + length + ", speed=" + speed + ", chanNum=" + chanNum + ", from=" + from
-				+ ", to=" + to + ", isDuplex=" + isDuplex + ", fromDirMap=" + fromDirMap + ", toDirMap=" + toDirMap
-				+ "]";
+				+ ", to=" + to + ", isDuplex=" + isDuplex + "]";
 	}
 
 	
